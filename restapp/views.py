@@ -28,6 +28,8 @@ def dummy_home(request):
     return render(request, "dummyhome.html")
 
 def message(request):
+    if request.method == "GET":
+        return HttpResponse("Received respons!e")
     return HttpResponse("Received respons!e")
 def user_logout(request):
     logout(request)
