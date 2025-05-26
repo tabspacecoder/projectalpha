@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'restapp',
     'storages',
     'corsheaders',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -133,5 +134,7 @@ AWS_SECRET_ACCESS_KEY = 'eqPvCxlmWElUqMvI0PjTf4b+Aqdy05dfLYgHOu6V'
 AWS_STORAGE_BUCKET_NAME = 'projectalpha-documents'
 AWS_S3_REGION_NAME = 'us-east-1'  # e.g., 'us-east-1'
 AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
+
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
 
 CORS_ALLOW_ALL_ORIGINS = True
