@@ -28,7 +28,7 @@ def dummy_home(request):
     return render(request, "dummyhome.html")
 
 def message(request):
-    return HttpResponse("Received response")
+    return HttpResponse("Received respons!e")
 def user_logout(request):
     logout(request)
     request.session.flush()
