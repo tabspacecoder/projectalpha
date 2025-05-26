@@ -131,3 +131,5 @@ AWS_SECRET_ACCESS_KEY = 'your-secret-access-key'
 AWS_STORAGE_BUCKET_NAME = 'your-bucket-name'
 AWS_S3_REGION_NAME = 'your-region'  # e.g., 'us-east-1'
 AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
+
+CORS_ALLOW_ALL_ORIGINS = True
