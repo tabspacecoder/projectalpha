@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HOME</title>
+</head>
+<body>
+<button onclick="redirectWithoutBack()">Logout</button>
+
+<script>
+function redirectWithoutBack() {
+    window.location.replace("{% url 'logout' %}");
+}
+</script>
+
+</body>
+</html>
