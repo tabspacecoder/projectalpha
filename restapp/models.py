@@ -8,6 +8,14 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
+from restapp.vectorstore import vectorize_pdf_and_upload_to_s3
+
+import boto3
+session = boto3.Session()
+credentials = session.get_credentials().get_frozen_credentials()
+print("Access Key:", credentials.access_key)
+print("Secret Key:", credentials.secret_key)
+print("Token:", credentials.token)
 
 s3_storage = S3Boto3Storage()
 # Create your models here.
@@ -42,6 +50,7 @@ class Document(models.Model):
 
     def process_file(self, uploaded_file):
         uploaded_file.seek(0)
-        file_data = uploaded_file.read() # True if uploaded
-        # print(default_storage.__class__)
-        print(f"File size: {len(file_data)} bytes")
+        file_bytes = uploaded_file.read()
+        filename_prefix = os.path.splitext(os.path.basename(self.file.name))[0]
+        num_chunks = vectorize_pdf_and_upload_to_s3(file_bytes, filename_prefix)
+        print(f"Processed and uploaded {num_chunks} chunks to S3.")

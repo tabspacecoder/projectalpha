@@ -128,10 +128,14 @@ LOGIN_URL = ''
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+# export AWS_ACCESS_KEY_ID="AKIA3MKTETV64HW6UBKZ"
+# export AWS_SECRET_ACCESS_KEY="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"
+# export AWS_DEFAULT_REGION="us-east-1"
+
 # AWS settings
-AWS_ACCESS_KEY_ID = 'AKIA3MKTETV6Q54PLSDF'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'projectalpha-documents'
+AWS_ACCESS_KEY_ID = 'AKIA3MKTETV64HW6UBKZ'
+AWS_SECRET_ACCESS_KEY = 'm42nJA5tfObT6vUNutK2/dx4BpgdZtL547Lh/daY'
+AWS_STORAGE_BUCKET_NAME = 'projectalpha-storage'
 AWS_S3_REGION_NAME = 'us-east-1'  # e.g., 'us-east-1'
 AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
 
