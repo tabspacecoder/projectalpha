@@ -9,6 +9,7 @@ from django.core.files.base import ContentFile
 from storages.backends.s3boto3 import S3Boto3Storage
 
 # Initialize model and S3 storage
+
 model = SentenceTransformer("all-MiniLM-L6-v2")
 s3_storage = S3Boto3Storage()
 

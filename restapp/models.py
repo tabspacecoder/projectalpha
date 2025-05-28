@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
-from restapp.vectorstore import vectorize_pdf_and_upload_to_s3
+from .vector_store_opensearch import vectorize_pdf_and_index_in_opensearch, search_DB
 
 import boto3
 session = boto3.Session()
@@ -51,6 +51,12 @@ class Document(models.Model):
     def process_file(self, uploaded_file):
         uploaded_file.seek(0)
         file_bytes = uploaded_file.read()
-        filename_prefix = os.path.splitext(os.path.basename(self.file.name))[0]
-        num_chunks = vectorize_pdf_and_upload_to_s3(file_bytes, filename_prefix)
-        print(f"Processed and uploaded {num_chunks} chunks to S3.")
+        #Opensearch model loading
+        vectorize_pdf_and_index_in_opensearch(file_bytes=file_bytes, filename=self.name)
+
+
+
+        #Fiass model loading
+        # filename_prefix = os.path.splitext(os.path.basename(self.file.name))[0]
+        # num_chunks = vectorize_pdf_and_upload_to_s3(file_bytes, filename_prefix)
+        # print(f"Processed and uploaded {num_chunks} chunks to S3.")

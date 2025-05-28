@@ -1,17 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>HOME</title>
+    <title>Dynamic Chat Page</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        iframe {
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
-<button onclick="redirectWithoutBack()">Logout</button>
-
-<script>
-function redirectWithoutBack() {
-    window.location.replace("{% url 'logout' %}");
-}
-</script>
-
+    <iframe src="{{ external_url }}" allowfullscreen></iframe>
 </body>
 </html>

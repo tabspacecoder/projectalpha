@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 import json
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -17,6 +17,7 @@ import io
 from django.core.files.storage import default_storage
 from threading import Lock
 import tempfile
+from .vector_store_opensearch import search_DB, build_context_from_hits
 
 # Lock for thread-safe lazy loading
 _load_lock = Lock()
@@ -32,6 +33,7 @@ def safe_exists(path):
 
 FAISS_INDEX_PATH = "vector.index"
 CHUNKS_JSON_PATH = "chunks.json"
+LLM_PATH = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/gemma-3-1b-it-Q5_K_M.gguf"
 
 def load_index_and_chunks():
     global index, document_chunks
@@ -80,7 +82,7 @@ document_chunks = []
 
 # Load Gemma 3 model
 llm = Llama(
-    model_path="/Users/karthick.ramesh/Downloads/gemma-3-1b-it-Q5_K_M.gguf",
+    model_path=LLM_PATH,
     n_ctx=2048,
     n_threads=4
 )
@@ -113,7 +115,9 @@ def user_login(request):
 
 @login_required
 def dummy_home(request):
-    return render(request, "dummyhome.html")
+    external_url = "http://localhost:5173"
+    # return render(request, 'dummyhome.html', {'external_url': external_url})
+    return HttpResponseRedirect(external_url)
 
 @csrf_exempt
 def message(request):
@@ -129,12 +133,14 @@ def message(request):
             if index.ntotal == 0 or not document_chunks:
                 return JsonResponse({"error": "No documents loaded. Please upload and vectorize a PDF first."}, status=400)
 
-            # Vectorize the user message
-            query_vector = model.encode([user_message])
-            D, I = index.search(np.array(query_vector), k=3)
-
-            # Filter out invalid indices (-1)
-            top_chunks = [document_chunks[i] for i in I[0] if 0 <= i < len(document_chunks)]
+            # # Vectorize the user message
+            # query_vector = model.encode([user_message])
+            # D, I = index.search(np.array(query_vector), k=3)
+            #
+            # # Filter out invalid indices (-1)
+            # top_chunks = [document_chunks[i] for i in I[0] if 0 <= i < len(document_chunks)]
+            # query_text = "What do you know about gmc"
+            open_search_response = search_DB(user_message)
 
             def truncate_context(chunks, max_tokens=1800):
                 max_chars = max_tokens * 4  # Rough estimate: 1 token ≈ 4 characters
@@ -145,35 +151,49 @@ def message(request):
                     context += chunk + "\n\n"
                 return context
 
-            if not top_chunks:
-                # Fallback response when no relevant context is found
-                fallback_prompt = f"""You are an AI assistant. Answer the question as best you can.
-
-Question: {user_message}
-Answer:"""
-                response = llm(fallback_prompt, max_tokens=256)
-                answer = response["choices"][0]["text"].strip()
-
-                return JsonResponse({
-                    "received_message": user_message,
-                    "response": answer,
-                    "note": "No relevant documents found. This is a general answer."
-                })
+            # if not top_chunks:
+            #     # Fallback response when no relevant context is found
+            #     fallback_prompt = f"""
+            #     You are an AI assistant.
+            #     Only use the information provided in the context below to answer the question.
+            #     If the answer is not present in the context, say: "The information is not available in the provided context."
+            #     Do not use any external knowledge.
+            #     Question: {user_message}
+            #     Answer:"""
+            #     response = llm(fallback_prompt, max_tokens=256)
+            #     answer = response["choices"][0]["text"].strip()
+            #
+            #     return JsonResponse({
+            #         "received_message": user_message,
+            #         "response": answer,
+            #         "note": "No relevant documents found. This is a general answer."
+            #     })
 
             # Prepare prompt with truncated context
-            context = truncate_context(top_chunks)
-            prompt = f"""Answer the question based on the context below.
-
-Context:
-{context}
-
-Question: {user_message}
-Answer:"""
-
+            context = build_context_from_hits(open_search_response, 20000)
+            if (context==""):
+                print("Context is empty")
+                prompt = f"""
+                    You are an AI assistant. 
+                    You don't know any information about the Question.
+                    If the Question is something general answer it modestly.
+                    Say the "The information is not available in the provided context."
+                    Question: {user_message}
+                    Answer:"""
+            else:
+                prompt = f"""
+                    You are an AI assistant. 
+                    Only use the information provided in the context below to answer the question.
+                    If the answer is not present in the context, say: "The information is not available in the provided context."
+                    Do not use any external knowledge.
+                    Give concise answers. Generate Answer only.
+                    Context:
+                    {context}
+                    Question: {user_message}
+                    Answer:"""
             # Generate response using Gemma 3
             response = llm(prompt, max_tokens=256)
             answer = response["choices"][0]["text"].strip()
-
             response_data = {
                 "received_message": user_message,
                 "response": answer,
