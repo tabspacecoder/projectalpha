@@ -61,8 +61,8 @@ def chunk_text(text, max_length=500):
 
 def vectorize_pdf_and_index_in_opensearch(file_bytes, filename, index_name=INDEX_NAME):
     # Extract text and chunk
-    # text = extract_text_from_pdf_stream(file_bytes)
-    chunks = chunk_text(file_bytes)
+    text = extract_text_from_pdf_stream(file_bytes)
+    chunks = chunk_text(text)
 
     # Embed chunks
     embeddings = model.encode(chunks, convert_to_numpy=True)
@@ -133,3 +133,4 @@ def build_context_from_hits(response, max_chars=2000):
 
         context_chunks.append(chunk)
         current_length += len(chunk)
+    return "\n---\n".join(context_chunks)
