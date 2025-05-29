@@ -52,35 +52,39 @@
 
 #For OpenSearch Local tests
 
-# from opensearchpy import OpenSearch
-# from sentence_transformers import SentenceTransformer
-# import time
-# import fitz
-#
-# # Configuration
-# OPENSEARCH_HOST = "localhost"
-# OPENSEARCH_PORT = 9200
-# OPENSEARCH_USER = "admin"
-# OPENSEARCH_PASS = "B0unT@Adm7"
-# INDEX_NAME = "documents-vector-index"
-# # EMBEDDING_DIM = 384  # Depends on the model
+from opensearchpy import OpenSearch
+import nltk
+from sentence_transformers import SentenceTransformer
+import time
+import fitz
+
+# Configuration
+OPENSEARCH_HOST = "localhost"
+OPENSEARCH_PORT = 9200
+OPENSEARCH_USER = "admin"
+OPENSEARCH_PASS = "B0unT@Adm7"
+INDEX_NAME = "documents-vector-index"
+# EMBEDDING_DIM = 384  # Depends on the model
 # model = SentenceTransformer("all-MiniLM-L6-v2")
-# # model = SentenceTransformer("text-embedding-3-small")
-#
-# # Create client
-# # client = OpenSearch(
-# #     hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
-# #     http_auth=(OPENSEARCH_USER, OPENSEARCH_PASS),
-# #     use_ssl=False,             # You didn't enable HTTPS in Docker
-# #     verify_certs=False         # No certs needed for HTTP
-# # )
+# model = SentenceTransformer("text-embedding-3-small")
+# nltk.download("punkt_tab")
+# from nltk.tokenize import sent_tokenize
+# text = "Hello world. This is a test. Let's see if it splits correctly!"
+# print(sent_tokenize(text))
+# Create client
 # client = OpenSearch(
 #     hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
 #     http_auth=(OPENSEARCH_USER, OPENSEARCH_PASS),
-#     use_ssl=True,
-#     verify_certs=False
+#     use_ssl=False,             # You didn't enable HTTPS in Docker
+#     verify_certs=False         # No certs needed for HTTP
 # )
-# client.indices.delete(index=INDEX_NAME)
+client = OpenSearch(
+    hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
+    http_auth=(OPENSEARCH_USER, OPENSEARCH_PASS),
+    use_ssl=True,
+    verify_certs=False
+)
+client.indices.delete(index=INDEX_NAME)
 # # if client.indices.exists(index=INDEX_NAME):
 # #     client.indices.delete(index=INDEX_NAME)
 #

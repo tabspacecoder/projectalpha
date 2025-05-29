@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
-from .vector_store_opensearch import vectorize_pdf_and_index_in_opensearch, search_DB
+from .vector_store_opensearch import vectorize_pdf_and_index_in_opensearch_bulk_v3
 
 import boto3
 session = boto3.Session()
@@ -52,7 +52,7 @@ class Document(models.Model):
         uploaded_file.seek(0)
         file_bytes = uploaded_file.read()
         #Opensearch model loading
-        vectorize_pdf_and_index_in_opensearch(file_bytes=file_bytes, filename=self.name)
+        vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=file_bytes, filename=self.name)
 
 
 

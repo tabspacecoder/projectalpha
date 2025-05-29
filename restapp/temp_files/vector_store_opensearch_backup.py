@@ -7,9 +7,6 @@ from opensearchpy.helpers import bulk
 import nltk
 import re
 import json
-from nltk.tokenize import sent_tokenize
-#Doenload tokenizer model
-nltk.download("punkt_tab")
 
 # Device configuration
 device = torch.device("mps") if torch.backends.mps.is_built() else torch.device("cpu")
@@ -26,6 +23,7 @@ EMBEDDING_DIM = 768  # Ensure this matches model output
 tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1",trust_remote_code=True)
 model = AutoModel.from_pretrained("nomic-ai/nomic-embed-text-v1",trust_remote_code=True)
 model.to(device)
+model.eval()
 
 # OpenSearch client
 client = OpenSearch(
@@ -72,8 +70,62 @@ else:
     print(f"Index '{INDEX_NAME}' already exists.")
 
 # Utility: Extract text from PDF stream
+def extract_text_from_pdf_stream(file_stream: bytes):
+    with fitz.open(stream=file_stream, filetype="pdf") as doc:
+        return "\n".join(page.get_text() for page in doc)
+def deduplicate_chunks(chunks):
+    seen = set()
+    unique_chunks = []
+    for chunk in chunks:
+        h = hash(chunk)
+        if h not in seen:
+            seen.add(h)
+            unique_chunks.append(chunk)
+    return unique_chunks
+
+# Utility: Chunk text
+# def chunk_text(text, max_length=200):
+#     words = text.split()
+#     return [' '.join(words[i:i + max_length]) for i in range(0, len(words), max_length)]
 
 
+nltk.download("punkt_tab")
+from nltk.tokenize import sent_tokenize
+
+
+def chunk_text_v2(text, max_tokens=100):
+    sentences = sent_tokenize(text)
+    chunks = []
+    current_chunk = []
+    current_len = 0
+
+    for sent in sentences:
+        sent_len = len(sent.split())
+        if current_len + sent_len > max_tokens and current_chunk:
+            chunk_text = " ".join(current_chunk)
+            clean_chunk = clean_text(chunk_text)
+            if clean_chunk:
+                chunks.append(clean_chunk)
+            # Overlap: keep last sentence for context
+            current_chunk = current_chunk[-1:]
+            current_len = len(current_chunk[0].split())
+
+        current_chunk.append(sent)
+        current_len += sent_len
+
+    # Add remaining chunk
+    if current_chunk:
+        clean_chunk = clean_text(" ".join(current_chunk))
+        if clean_chunk:
+            chunks.append(clean_chunk)
+
+    return chunks
+
+
+def chunk_text(text, max_tokens=50):
+    words = text.split()
+    step = max_tokens // 2  # overlap to maintain context
+    return [' '.join(words[i:i + max_tokens]) for i in range(0, len(words), step)]
 
 # Embedding using Nomic transformer
 def embed_texts(texts, batch_size=16):
@@ -88,6 +140,63 @@ def embed_texts(texts, batch_size=16):
             normalized = F.normalize(cls_embeddings, p=2, dim=1)
             embeddings.extend(normalized.cpu().numpy())
     return embeddings
+
+def vectorize_pdf_and_index_in_opensearch_bulk(file_bytes, filename, index_name=INDEX_NAME):
+    text = extract_text_from_pdf_stream(file_bytes)
+    chunks = chunk_text(text)
+    embeddings = embed_texts(chunks)
+
+    # Prepare bulk documents
+    docs = [
+        {
+            "_index": index_name,
+            "_id": f"{filename}_{i}",
+            "_source": {
+                "text": chunk,
+                "embedding": embedding.tolist(),
+                "filename": filename
+            }
+        }
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+    ]
+
+    # Perform bulk indexing
+    success, _ = bulk(client, docs)
+    client.indices.refresh(index=index_name)
+
+    print(f"Bulk indexed {success} chunks for file '{filename}'.")
+    return len(chunks)
+
+
+def vectorize_pdf_and_index_in_opensearch_bulk_v2(file_bytes, filename, index_name=INDEX_NAME):
+    raw_text = extract_text_from_pdf_stream(file_bytes)
+    chunks = chunk_text_v2(raw_text, max_tokens=100)  # smarter chunking
+    chunks = deduplicate_chunks(chunks)  # remove duplicates
+
+    if not chunks:
+        print("No valid chunks found after processing.")
+        return 0
+
+    embeddings = embed_texts(chunks)
+
+    docs = [
+        {
+            "_index": index_name,
+            "_id": f"{filename}_{i}",
+            "_source": {
+                "text": chunk,
+                "embedding": embedding.tolist(),
+                "filename": filename
+            }
+        }
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+    ]
+
+    success, _ = bulk(client, docs)
+    client.indices.refresh(index=index_name)
+    print(f"Bulk indexed {success} chunks for file '{filename}'.")
+    return len(chunks)
+
 
 
 def extract_text_and_metadata(file_bytes):
@@ -218,6 +327,21 @@ def vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes, filename, index_na
 
 
 # Search OpenSearch with query
+def search_DB(query_text):
+    query_vector = embed_texts([query_text])[0].tolist()
+    query = {
+        "size": 10,
+        "query": {
+            "knn": {
+                "embedding": {
+                    "vector": query_vector,
+                    "k": 12
+                }
+            }
+        }
+    }
+    response = client.search(index=INDEX_NAME, body=query)
+    return response
 
 def search_DB_v2(query_text, index_name=INDEX_NAME, k=12, size=7, filename_filter=None):
     query_vector = embed_texts([query_text])[0].tolist()
@@ -286,3 +410,30 @@ def get_texts_from_response(response):
         if text:
             texts.append(text)
     return "\n---\n".join(texts)
+
+# Optional: build a context snippet from top hits
+
+# For local file testing (optional)
+# def extract_text_from_pdf(file_path):
+#     with fitz.open(file_path) as doc:
+#         text = ""
+#         for page in doc:
+#             text += page.get_text()
+#         return text
+
+def extract(pdf_path):
+    with open(pdf_path, "rb") as f:
+        file_bytes = f.read()
+        return file_bytes
+
+# pdf_path = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/uploads/employee handbook.pdf"
+# pdf_path = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/uploads/Lockers Policy.pdf"
+# text = extract(pdf_path)
+# vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=text, filename="Lockers Policy.pdf")
+# vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=text, filename="employee handbook.pdf")
+# query = "what are the terms of locker policy"
+# response = search_DB(query)
+# # print("Top relevant chunks:")
+# print(get_texts_from_response(response))
+# print("Raw hits:", response.get("hits", {}).get("hits", []))
+# print(json.dumps(response.get("hits", {}).get("hits", []), indent=2))
