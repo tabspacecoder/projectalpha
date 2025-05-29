@@ -202,7 +202,42 @@ def message(request):
                     "<|assistant|>\n"
                 )
 
-            prompt = build_gguf_prompt(user_message, context)
+            chat_history = []
+
+            def build_chat_prompt(chat_history, context=None, current_user_message=""):
+                previous_chat_history = ""
+                for turn in chat_history:
+                    if turn["role"] == "user":
+                        previous_chat_history += f"<|user|>\n{turn['content'].strip()}\n"
+                    elif turn["role"] == "assistant":
+                        previous_chat_history += f"<|assistant|>\n{turn['content'].strip()}\n"
+
+                current_user_message = current_user_message.strip()
+
+                if not context:
+                    prompt = (
+                        "<|user|>\n"
+                        "You are a helpful and conversational AI assistant. Respond naturally, but only answer based on the chat history.\n"
+                        "If you don't know something, say: 'I'm not sure about that.'\n"
+                        f"Previous chat history:\n{previous_chat_history}\n"
+                        f"Question: {current_user_message}\n"
+                        "<|assistant|>\n"
+                    )
+                else:
+                    context = context.strip()
+                    prompt = (
+                        "<|user|>\n"
+                        "You are a helpful, conversational AI assistant. Answer naturally and clearly.\n"
+                        "Use the information provided in the context and chat history to answer the question accurately.\n"
+                        "If something is not found in the context, say: 'I'm not sure based on what I have.'\n"
+                        f"Context:\n{context}\n\n"
+                        f"Previous chat history:\n{previous_chat_history}\n"
+                        f"Question: {current_user_message}\n"
+                        "<|assistant|>\n"
+                    )
+                return prompt
+            # prompt = build_gguf_prompt(user_message, context)
+            prompt = build_chat_prompt(chat_history, context=context, current_user_message=user_message)
             # Generate response using Gemma 3
             response = llm(prompt, max_tokens=256)
             answer = response["choices"][0]["text"].strip()
@@ -210,6 +245,8 @@ def message(request):
                 "received_message": user_message,
                 "response": answer,
             }
+            chat_history.append({"role": "user", "content": user_message})
+            chat_history.append({"role": "assistant", "content": answer})
             return JsonResponse(response_data)
 
         except json.JSONDecodeError:
