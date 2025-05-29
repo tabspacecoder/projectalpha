@@ -17,10 +17,10 @@ import io
 from django.core.files.storage import default_storage
 from threading import Lock
 import tempfile
-from .vector_store_opensearch import search_DB, get_texts_from_response, search_DB_v2
+from .vector_store_opensearch import get_texts_from_response, search_DB_v2
 from storages.backends.s3boto3 import S3Boto3Storage
 
-storage = S3Boto3Storage()
+# storage = S3Boto3Storage()
 # Lock for thread-safe lazy loading
 # _load_lock = Lock()
 # _loaded = False
