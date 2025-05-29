@@ -1,5 +1,19 @@
 
 # projectalpha
+## Before doing anything
+> **Note:** If you don't have PYTHON3 installed, please install it first(DUH!).
+
+## Running Django server
+### FIRST AND FOREMOST
+```bash
+pip install -r requirements.txt
+```
+### Starting the server
+```bash
+python manage.py makemigrations
+python manage.py migrate
+python manage.py runserver
+```
 
 ## Running OpenSearch in Docker
 
