@@ -31,10 +31,10 @@ docker run -it -p 9200:9200 -p 9600:9600 \
 
 > **Note:** If you don't have NVM (Node Version Manager) installed, please install it first.
 
-Install Node.js version `14.21.3` using NVM and follow the steps:
+Install Node.js version `22.16.0` using NVM and follow the steps:
    ```bash
-   nvm install 14.21.3
-   nvm use 14.21.3
+   nvm install 22.16.0
+   nvm use 22.16.0
    npm install
    npm run dev
    ```
