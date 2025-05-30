@@ -9,6 +9,7 @@ from django.contrib.auth import logout
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseRedirect
 import json
+from collections import Counter
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import faiss
@@ -17,7 +18,7 @@ import io
 from django.core.files.storage import default_storage
 from threading import Lock
 import tempfile
-from .vector_store_opensearch import get_texts_from_response, search_DB_v2
+from .vector_store_opensearch import get_texts_from_response, search_DB_For_Context, store_in_past_knowledge_index, search_past_knowledge, build_context_from_past_search_results
 from storages.backends.s3boto3 import S3Boto3Storage
 
 # storage = S3Boto3Storage()
@@ -177,11 +178,15 @@ def message(request):
             #     })
 
             #Get response from opensearch DB
-            open_search_response = search_DB_v2(user_message)
+            open_search_response = search_DB_For_Context(user_message)
+            past_knowledge_response = search_past_knowledge(user_message)
             # Prepare prompt with truncated context
-            context = get_texts_from_response(open_search_response)
+            source_files, context = get_texts_from_response(open_search_response)
             print("Returned Context: ", context)
-            def build_gguf_prompt(user_message, context=None):
+            # print("Source Files: ", set(source_files))
+
+            # To build answers based only on Context from the file
+            def build_chat_prompt(user_message, context=None):
                 if not context:
                     return (
                         "<|user|>\n"
@@ -202,9 +207,13 @@ def message(request):
                     "<|assistant|>\n"
                 )
 
+
+
             chat_history = []
 
-            def build_chat_prompt(chat_history, context=None, current_user_message=""):
+            #This is with past chat knowledge in current text session.
+            def build_chat_prompt_v2(chat_history, context=None, current_user_message=""):
+                no_context = False
                 previous_chat_history = ""
                 for turn in chat_history:
                     if turn["role"] == "user":
@@ -223,21 +232,71 @@ def message(request):
                         f"Question: {current_user_message}\n"
                         "<|assistant|>\n"
                     )
+                    no_context = True
                 else:
                     context = context.strip()
                     prompt = (
                         "<|user|>\n"
                         "You are a helpful, conversational AI assistant. Answer naturally and clearly.\n"
-                        "Use the information provided in the context and chat history to answer the question accurately.\n"
+                        "Use the information provided in the context and chat history to answer the question accurately and completely.\n"
                         "If something is not found in the context, say: 'I'm not sure based on what I have.'\n"
                         f"Context:\n{context}\n\n"
                         f"Previous chat history:\n{previous_chat_history}\n"
                         f"Question: {current_user_message}\n"
                         "<|assistant|>\n"
                     )
-                return prompt
-            # prompt = build_gguf_prompt(user_message, context)
-            prompt = build_chat_prompt(chat_history, context=context, current_user_message=user_message)
+                return prompt, no_context
+
+            #This is with past chat knowledge as a whole ---- But currently this is halucinating because of past stored false data
+            def build_chat_prompt_v3(chat_history, context=None, current_user_message="", past_search_context=None):
+                no_context = False
+                previous_chat_history = ""
+
+                for turn in chat_history:
+                    if turn["role"] == "user":
+                        previous_chat_history += f"<|user|>\n{turn['content'].strip()}\n"
+                    elif turn["role"] == "assistant":
+                        previous_chat_history += f"<|assistant|>\n{turn['content'].strip()}\n"
+
+                current_user_message = current_user_message.strip()
+                past_context_block = f"Past knowledge context:\n{past_search_context.strip()}\n\n" if past_search_context else ""
+
+                if not context:
+                    prompt = (
+                        "<|user|>\n"
+                        "You are a helpful and conversational AI assistant. Respond naturally, but only answer based on the chat history and any past context if available.\n"
+                        "If you don't know something, say: 'I'm not sure about that.'\n"
+                        f"{past_context_block}"
+                        f"Previous chat history:\n{previous_chat_history}\n"
+                        f"Question: {current_user_message}\n"
+                        "<|assistant|>\n"
+                    )
+                    no_context = True
+                else:
+                    context = context.strip()
+                    prompt = (
+                        "<|user|>\n"
+                        "You are a helpful,empathetic, conversational AI assistant. Answer naturally and clearly.\n"
+                        "Use the information provided in the context, past knowledge, and chat history to answer the question accurately and completely.\n"
+                        "Ignore information irrelevant to the Question. \n"
+                        "If something is not found in the context, say: 'I'm not sure based on what I have.'\n"
+                        f"Context:\n{context}\n\n"
+                        f"{past_context_block}"
+                        f"Previous chat history:\n{previous_chat_history}\n"
+                        f"Question: {current_user_message}\n"
+                        "<|assistant|>\n"
+                    )
+
+                return prompt, no_context
+
+            # prompt = build_chat_prompt(user_message, context)
+
+            prompt, no_context = build_chat_prompt_v2(chat_history, context=context, current_user_message=user_message)
+
+            # prompt, no_context = build_chat_prompt_v3(chat_history, context=context, current_user_message=user_message, past_search_context=past_search_context)
+
+            # Helper function of build_chat_prompt_v3
+            # past_search_context, past_search_file_name = build_context_from_past_search_results(past_knowledge_response)
             # Generate response using Gemma 3
             response = llm(prompt, max_tokens=256)
             answer = response["choices"][0]["text"].strip()
@@ -245,8 +304,12 @@ def message(request):
                 "received_message": user_message,
                 "response": answer,
             }
+
             chat_history.append({"role": "user", "content": user_message})
             chat_history.append({"role": "assistant", "content": answer})
+            if not no_context:
+                get_first_source_file = Counter(source_files).most_common(1)[0][0] if source_files else None
+                # store_in_past_knowledge_index(user_message=user_message,answer=answer,filename=get_first_source_file)
             return JsonResponse(response_data)
 
         except json.JSONDecodeError:

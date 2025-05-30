@@ -8,6 +8,7 @@ import nltk
 import re
 import json
 from nltk.tokenize import sent_tokenize
+from datetime import datetime
 #Doenload tokenizer model
 nltk.download("punkt_tab")
 
@@ -20,6 +21,7 @@ OPENSEARCH_PORT = 9200
 OPENSEARCH_USER = "admin"
 OPENSEARCH_PASS = "B0unT@Adm7"
 INDEX_NAME = "documents-vector-index"
+PAST_KNOWLEDGE_INDEX = "past-knowledge-index"
 EMBEDDING_DIM = 768  # Ensure this matches model output
 
 # Load tokenizer and model
@@ -36,43 +38,100 @@ client = OpenSearch(
 )
 
 # Create index if not exists
-index_body = {
-    "settings": {
-        "index": {
-            "knn": True,
-            "refresh_interval": "30s",
-            "number_of_shards": 2
-        }
-    },
-    "mappings": {
-        "properties": {
-            "text": {"type": "text"},
-            "filename": {"type": "keyword"},
-            "embedding": {
-                "type": "knn_vector",
-                "dimension": EMBEDDING_DIM,
-                "method": {
-                    "name": "hnsw",
-                    "space_type": "cosinesimil",
-                    "engine": "faiss",
-                    "parameters": {
-                        "ef_construction": 200,
-                        "m": 32
+def create_context_index():
+    index_body = {
+        "settings": {
+            "index": {
+                "knn": True,
+                "refresh_interval": "30s",
+                "number_of_shards": 2
+            }
+        },
+        "mappings": {
+            "properties": {
+                "text": {"type": "text"},
+                "filename": {"type": "keyword"},
+                "embedding": {
+                    "type": "knn_vector",
+                    "dimension": EMBEDDING_DIM,
+                    "method": {
+                        "name": "hnsw",
+                        "space_type": "cosinesimil",
+                        "engine": "faiss",
+                        "parameters": {
+                            "ef_construction": 200,
+                            "m": 32
+                        }
                     }
                 }
             }
         }
     }
-}
 
-if not client.indices.exists(index=INDEX_NAME):
-    client.indices.create(index=INDEX_NAME, body=index_body)
-    print(f"Index '{INDEX_NAME}' created.")
-else:
-    print(f"Index '{INDEX_NAME}' already exists.")
+    if not client.indices.exists(index=INDEX_NAME):
+        client.indices.create(index=INDEX_NAME, body=index_body)
+        print(f"Index '{INDEX_NAME}' created.")
+    else:
+        print(f"Index '{INDEX_NAME}' already exists.")
 
 # Utility: Extract text from PDF stream
 
+# Create index if it doesn't exist
+def create_past_knowledge_index():
+    if not client.indices.exists(index=PAST_KNOWLEDGE_INDEX):
+        body = {
+            "settings": {
+                "knn": True,
+                "number_of_shards": 1,
+                "refresh_interval": "1s"
+            },
+            "mappings": {
+                "properties": {
+                    "received_message": {"type": "text"},
+                    "response": {"type": "text"},
+                    "filename": {"type": "keyword"},
+                    "timestamp": {"type": "date"},
+                    "embedding": {
+                        "type": "knn_vector",
+                        "dimension": EMBEDDING_DIM,
+                        "method": {
+                            "name": "hnsw",
+                            "space_type": "cosinesimil",
+                            "engine": "faiss",
+                            "parameters": {
+                                "ef_construction": 200,
+                                "m": 32
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        client.indices.create(index=PAST_KNOWLEDGE_INDEX, body=body)
+        print(f"Index '{PAST_KNOWLEDGE_INDEX}' created.")
+    else:
+        print(f"Index '{PAST_KNOWLEDGE_INDEX}' already exists.")
+
+create_past_knowledge_index()
+create_context_index()
+# Store the interaction
+def store_in_past_knowledge_index(user_message, answer):
+    create_past_knowledge_index()
+
+    embedding = embed_texts([user_message])[0].tolist()
+
+    doc = {
+        "received_message": user_message,
+        "response": answer,
+        "embedding": embedding,
+        "timestamp": torch.tensor([]).new_zeros(()).numpy().tolist()  # or use datetime.now().isoformat()
+    }
+
+    try:
+        res = client.index(index=PAST_KNOWLEDGE_INDEX, body=doc)
+        print("Stored in past knowledge index:", res['result'])
+    except Exception as e:
+        print("Error storing conversation:", e)
 
 
 # Embedding using Nomic transformer
@@ -186,6 +245,7 @@ def extract_text_and_metadata(file_bytes):
 
 
 def vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes, filename, index_name=INDEX_NAME):
+    create_context_index()
     chunks_with_meta = extract_text_and_metadata(file_bytes)
 
     if not chunks_with_meta:
@@ -216,10 +276,28 @@ def vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes, filename, index_na
     print(f"Bulk indexed {success} chunks for file '{filename}' with metadata.")
     return len(chunks_with_meta)
 
+def store_in_past_knowledge_index(user_message, answer, filename):
+
+    embedding = embed_texts([user_message])[0].tolist()
+
+    doc = {
+        "received_message": user_message,
+        "response": answer,
+        "embedding": embedding,
+        "filename": filename,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    try:
+        res = client.index(index=PAST_KNOWLEDGE_INDEX, body=doc)
+        print(f"Stored in 'past-knowledge' from file '{filename}':", res['result'])
+    except Exception as e:
+        print("Error storing conversation:", e)
+
+
 
 # Search OpenSearch with query
-
-def search_DB_v2(query_text, index_name=INDEX_NAME, k=12, size=7, filename_filter=None):
+def search_DB_For_Context(query_text, index_name=INDEX_NAME, k=12, size=7, filename_filter=None):
     query_vector = embed_texts([query_text])[0].tolist()
 
     base_query = {
@@ -278,11 +356,76 @@ def search_DB_v2(query_text, index_name=INDEX_NAME, k=12, size=7, filename_filte
 
     return response
 
+def search_past_knowledge(query_text, k=12, size=2):
+    query_vector = embed_texts([query_text])[0].tolist()
+
+    query_body = {
+        "size": size,
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "knn": {
+                            "embedding": {
+                                "vector": query_vector,
+                                "k": k
+                            }
+                        }
+                    },
+                    {
+                        "multi_match": {
+                            "query": query_text,
+                            "fields": ["received_message^2", "response"],
+                            "type": "most_fields"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    try:
+        response = client.search(index=PAST_KNOWLEDGE_INDEX, body=query_body)
+        results = []
+        for hit in response["hits"]["hits"]:
+            source = hit["_source"]
+            results.append({
+                "received_message": source.get("received_message", ""),
+                "response": source.get("response", ""),
+                "filename": source.get("filename", ""),  # still included for review
+                "timestamp": source.get("timestamp", ""),
+                "score": hit.get("_score", 0)
+            })
+        return results
+    except Exception as e:
+        print("Error searching past knowledge:", e)
+        return []
+
+
 def get_texts_from_response(response):
     hits = response.get("hits", {}).get("hits", [])
     texts = []
+    source_file = []
     for hit in hits:
         text = hit.get("_source", {}).get("text", "")
+        source_file.append(hit.get("_source", {}).get("filename", ""))
         if text:
             texts.append(text)
-    return "\n---\n".join(texts)
+    return source_file, "\n---\n".join(texts)
+
+def build_context_from_past_search_results(search_results, max_entries=2):
+    # Sort by score descending
+    sorted_results = sorted(search_results, key=lambda r: r.get("score", 0), reverse=True)
+    top_results = sorted_results[:max_entries]
+
+    context_parts = []
+    filenames = []
+
+    for res in top_results:
+        filenames.append(res["filename"])
+        context_parts.append(
+            f"Q: {res['received_message']}\nA: {res['response']}"
+        )
+
+    context = "\n\n".join(context_parts)
+    return context, filenames
