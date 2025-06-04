@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 from django.db import models
 import os
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
-from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
 from .vector_store_opensearch import vectorize_pdf_and_index_in_opensearch_bulk_v3
 
@@ -20,7 +17,7 @@ print("Token:", credentials.token)
 s3_storage = S3Boto3Storage()
 # Create your models here.
 def validate_file_extension(value):
-    valid_extensions = ['.pdf', '.txt']
+    valid_extensions = ['.pdf']
     ext = os.path.splitext(value.name)[1].lower()
     if ext not in valid_extensions:
         raise ValidationError(f'Unsupported file extension: {ext}. Allowed types: {", ".join(valid_extensions)}')
@@ -35,8 +32,9 @@ class Document(models.Model):
 
         super().save(*args, **kwargs)
 
-        self.process_file(self.file)
+        self.process_file(uploaded_file=self.file, name=self.file.name)
         name = s3_storage.save(name=self.file.name, content=self.file)
+        print("Uploaded File Name : ",name)
 
         if is_new:
             self.name = name.split('uploads/')[1]
@@ -48,11 +46,11 @@ class Document(models.Model):
     def __str__(self):
         return self.name or "Unnamed Document"
 
-    def process_file(self, uploaded_file):
+    def process_file(self, uploaded_file, name):
         uploaded_file.seek(0)
         file_bytes = uploaded_file.read()
         #Opensearch model loading
-        vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=file_bytes, filename=self.name)
+        vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=file_bytes, filename=name.split('uploads/')[1])
 
 
 

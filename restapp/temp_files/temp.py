@@ -503,51 +503,57 @@
 # # print(response)
 
 
-def process_user_message(request):
-    try:
-        data = json.loads(request.body)
-        user_message = data.get("message")
-        if not user_message:
-            return JsonResponse({"error": "Message not found."}, status=400)
+# def process_user_message(request):
+#     try:
+#         data = json.loads(request.body)
+#         user_message = data.get("message")
+#         if not user_message:
+#             return JsonResponse({"error": "Message not found."}, status=400)
+#
+#         open_search_response = search_DB_For_Context(user_message)
+#         past_knowledge_response = search_past_knowledge(user_message)
+#
+#         source_files, context = get_texts_from_response(open_search_response)
+#         filtered_past = [r for r in past_knowledge_response if r["score"] > 5.0]
+#         past_search_context, _ = build_context_from_past_search_results(filtered_past)
+#
+#         # Session-based chat history
+#         chat_history = request.session.get("chat_history", [])
+#
+#         prompt, no_context = build_chat_prompt_v3(
+#             chat_history, context, user_message, past_search_context
+#         )
+#
+#         response = llm(prompt, max_tokens=256)
+#         answer = response["choices"][0]["text"].strip()
+#
+#         # Update chat history
+#         chat_history.extend([
+#             {"role": "user", "content": user_message},
+#             {"role": "assistant", "content": answer}
+#         ])
+#         request.session["chat_history"] = chat_history
+#
+#         # Store interaction if context was used
+#         if not no_context and source_files:
+#             top_file = Counter(source_files).most_common(1)[0][0]
+#             store_in_past_knowledge_index(user_message, answer, top_file)
+#
+#         return JsonResponse({
+#             "received_message": user_message,
+#             "response": answer,
+#             "used_context": context,
+#             "source_files": list(set(source_files)),
+#             "prompt": prompt
+#         })
+#
+#     except json.JSONDecodeError:
+#         return JsonResponse({"error": "Invalid JSON."}, status=400)
+#     except Exception as e:
+#         return JsonResponse({"error": str(e)}, status=500)
 
-        open_search_response = search_DB_For_Context(user_message)
-        past_knowledge_response = search_past_knowledge(user_message)
-
-        source_files, context = get_texts_from_response(open_search_response)
-        filtered_past = [r for r in past_knowledge_response if r["score"] > 5.0]
-        past_search_context, _ = build_context_from_past_search_results(filtered_past)
-
-        # Session-based chat history
-        chat_history = request.session.get("chat_history", [])
-
-        prompt, no_context = build_chat_prompt_v3(
-            chat_history, context, user_message, past_search_context
-        )
-
-        response = llm(prompt, max_tokens=256)
-        answer = response["choices"][0]["text"].strip()
-
-        # Update chat history
-        chat_history.extend([
-            {"role": "user", "content": user_message},
-            {"role": "assistant", "content": answer}
-        ])
-        request.session["chat_history"] = chat_history
-
-        # Store interaction if context was used
-        if not no_context and source_files:
-            top_file = Counter(source_files).most_common(1)[0][0]
-            store_in_past_knowledge_index(user_message, answer, top_file)
-
-        return JsonResponse({
-            "received_message": user_message,
-            "response": answer,
-            "used_context": context,
-            "source_files": list(set(source_files)),
-            "prompt": prompt
-        })
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON."}, status=400)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+# from storages.backends.s3boto3 import S3Boto3Storage
+#
+# storage = S3Boto3Storage()
+# with open('/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/Qwen3-0.6B-Q8_0.gguf', 'rb') as local_file:
+#     storage.save('model/Qwen3-0.6B-Q8_0.gguf', local_file)
