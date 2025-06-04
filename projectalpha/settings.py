@@ -133,13 +133,14 @@ DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 # export AWS_DEFAULT_REGION="us-east-1"
 
 # AWS settings
-AWS_ACCESS_KEY_ID = 'AKIA3MKTETV64HW6UBKZ'
-AWS_SECRET_ACCESS_KEY = 'm42nJA5tfObT6vUNutK2/dx4BpgdZtL547Lh/daY'
-AWS_STORAGE_BUCKET_NAME = 'projectalpha-storage'
-AWS_S3_REGION_NAME = 'us-east-1'  # e.g., 'us-east-1'
+AWS_ACCESS_KEY_ID = 'AKIA2FA7DQGYCLEJYFPX'
+AWS_SECRET_ACCESS_KEY = 'aeSjgWRTSCDwiMNIVZ3JeVMJqE38HNKFpxe+Ysjc'
+AWS_STORAGE_BUCKET_NAME = 'ctrl-ai-hack-hello-world-s3'
+AWS_S3_REGION_NAME = 'ap-south-1'  # e.g., 'us-east-1'
 AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
 
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
+# https://ctrl-ai-hack-hello-world-s3.s3.ap-south-1.amazonaws.com
 
 CORS_ALLOW_ALL_ORIGINS = True
 TOKENIZERS_PARALLELISM = False

@@ -9,6 +9,48 @@ import re
 import json
 from nltk.tokenize import sent_tokenize
 from datetime import datetime
+import boto3
+from opensearchpy import OpenSearch, RequestsHttpConnection
+from requests_aws4auth import AWS4Auth
+
+# Set AWS credentials and region directly in code
+# aws_access_key = "AKIA3MKTETV6SKJYRUFZ"
+# aws_secret_key = "T8f96ej3zzOEIdR7ha57Fs2jQ8knynMMOsdOg/pS"
+# aws_session_token = None  # Optional, only needed if using temporary credentials (e.g. from STS)
+# region = "us-east-1"
+# service = "es"
+
+# # Create boto3 session with credentials
+# session = boto3.Session(
+#     aws_access_key_id=aws_access_key,
+#     aws_secret_access_key=aws_secret_key,
+#     region_name=region
+# )
+
+# Get credentials from session
+# credentials = session.get_credentials().get_frozen_credentials()
+
+# AWS4Auth for signing OpenSearch requests
+# awsauth = AWS4Auth(
+#     credentials.access_key,
+#     credentials.secret_key,
+#     region,
+#     service,
+#     session_token=credentials.token
+# )
+
+# AWS OpenSearch endpoint (no "https://")
+OPENSEARCH_HOST = "search-project-alpha1-7ov6m6etnf5pw5iti2zydq6teq.us-east-1.es.amazonaws.com"
+
+# Create OpenSearch client
+# client = OpenSearch(
+#     hosts=[{'host': OPENSEARCH_HOST, 'port': 443}],
+#     http_auth=awsauth,
+#     use_ssl=True,
+#     verify_certs=True,
+#     connection_class=RequestsHttpConnection
+# )
+
 #Doenload tokenizer model
 nltk.download("punkt_tab")
 
@@ -16,13 +58,20 @@ nltk.download("punkt_tab")
 device = torch.device("mps") if torch.backends.mps.is_built() else torch.device("cpu")
 
 # OpenSearch configuration
-OPENSEARCH_HOST = "localhost"
+# OPENSEARCH_HOST = "localhost"
 OPENSEARCH_PORT = 9200
 OPENSEARCH_USER = "admin"
 OPENSEARCH_PASS = "B0unT@Adm7"
 INDEX_NAME = "documents-vector-index"
 PAST_KNOWLEDGE_INDEX = "past-knowledge-index"
 EMBEDDING_DIM = 768  # Ensure this matches model output
+client = OpenSearch(
+    hosts=[{'host': OPENSEARCH_HOST, 'port': 443}],
+    http_auth=('project-alpha', 'Project@lpha123'),
+    use_ssl=True,
+    verify_certs=True,
+    connection_class=RequestsHttpConnection
+)
 
 # Load tokenizer and model
 tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1",trust_remote_code=True)
@@ -30,12 +79,12 @@ model = AutoModel.from_pretrained("nomic-ai/nomic-embed-text-v1",trust_remote_co
 model.to(device)
 
 # OpenSearch client
-client = OpenSearch(
-    hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
-    http_auth=(OPENSEARCH_USER, OPENSEARCH_PASS),
-    use_ssl=True,
-    verify_certs=False
-)
+# client = OpenSearch(
+#     hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
+#     http_auth=(OPENSEARCH_USER, OPENSEARCH_PASS),
+#     use_ssl=True,
+#     verify_certs=False
+# )
 
 # Create index if not exists
 def create_context_index():
@@ -110,11 +159,11 @@ def create_past_knowledge_index():
     else:
         print(f"Index '{PAST_KNOWLEDGE_INDEX}' already exists.")
 
-create_past_knowledge_index()
+# create_past_knowledge_index()
 create_context_index()
 # Store the interaction
 def store_in_past_knowledge_index(user_message, answer):
-    create_past_knowledge_index()
+    # create_past_knowledge_index()
 
     embedding = embed_texts([user_message])[0].tolist()
 
@@ -427,3 +476,16 @@ def build_context_from_past_search_results(search_results, max_entries=2):
 
     context = "\n\n".join(context_parts)
     return context, filenames
+
+def extract(pdf_path):
+    with open(pdf_path, "rb") as f:
+        file_bytes = f.read()
+        return file_bytes
+
+# pdf_path = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/uploads/employee handbook.pdf"
+# pdf_path = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/uploads/Lockers Policy.pdf"
+# text = extract(pdf_path)
+# vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=text, filename="employee handbook.pdf")
+# user_message = "What do you know about care values"
+# response = search_DB_For_Context(user_message)
+# print(response)

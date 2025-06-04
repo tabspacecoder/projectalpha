@@ -540,7 +540,9 @@ def message(request):
         #             return JsonResponse({"response": "Invalid username or password."}, status=200)
         #     return JsonResponse({"response": "Authenticate first. To login use the format - \login \\usr<username> \\pw<password>"}, status=200)
 
-        chat_history = request.session.get("chat_history", [])
+        # chat_history = request.session.get("chat_history", [])
+        original_history = request.session.get("chat_history", [])
+        chat_history = summarize_chat_history(original_history, max_turns=10)
 
         message_intent = deduce_intent(user_message)
         print("message_intent: ", message_intent)
@@ -587,7 +589,8 @@ def message(request):
         chat_history.append({"role": "user", "content": user_message})
         chat_history.append({"role": "assistant", "content": answer})
         chat_history = truncate_chat_history(chat_history, max_turns=20)
-        request.session["chat_history"] = chat_history
+        # request.session["chat_history"] = chat_history
+        request.session["chat_history"] = summarize_chat_history(original_history, max_turns=10)
         request.session.modified = True
 
         return JsonResponse({

@@ -41,7 +41,6 @@ const ChatWidget = () => {
       const res = await fetch('http://localhost:8000/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ message: input }),
       });
       const { response } = await res.json();
