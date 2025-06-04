@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.contrib import admin
 from .models import Document
 
-admin.site.site_header = "Project Alpha Admin"
+admin.site.site_header = "Hello World Admin"
 admin.site.index_title = "Welcome to the Admin Dashboard"
 
 @admin.register(Document)

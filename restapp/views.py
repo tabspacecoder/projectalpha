@@ -14,7 +14,7 @@ import os
 from django.http import FileResponse
 import re
 from pathlib import Path
-from .vector_store_opensearch import get_texts_from_response, search_DB_For_Context
+from .vector_store_opensearch import get_texts_from_response, search_DB_For_Context, delete_index
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 local_path = Path('Qwen3-0.6B-Q8_0.gguf')
 
@@ -199,6 +199,9 @@ def message(request):
         if user_message == '\clear':
             request.session.flush()
             return JsonResponse({"response": "Session history cleared successfully."}, status=200)
+        if user_message == '\delete':
+            delete_index()
+            return JsonResponse({"response": "Session deleted all the chunks."}, status=200)
         # if not request.user.is_authenticated:
         #     match = re.match(login_pattern, user_message)
         #     if match:
@@ -214,8 +217,8 @@ def message(request):
         # original_history = request.session.get("chat_history", [])
         # chat_history = summarize_chat_history(original_history, max_turns=10)
 
-        message_intent = deduce_intent(user_message)
-        print("message_intent: ", message_intent)
+        # message_intent = deduce_intent(user_message)
+        # print("message_intent: ", message_intent)
         open_search_response = search_DB_For_Context(user_message)
         source_files, context_texts = get_texts_from_response(open_search_response)
 
@@ -266,8 +269,14 @@ def message(request):
             file = s3_storage.open('uploads/' + filename, mode='rb')
             print(file.read())
             return FileResponse(file, as_attachment=True, filename=filename)
-        filename = list(set(source_files))[0]
-        file_url = request.build_absolute_uri(reverse('download_file', args=[filename]))
+        try:
+            filename = list(set(source_files))[0]
+        except:
+            filename = "NOT_FOUND"
+        try:
+            file_url = request.build_absolute_uri(reverse('download_file', args=[filename]))
+        except:
+            file_url = "NOT_FOUND"
         return JsonResponse({
             "received_message": user_message,
             "response": answer,

@@ -124,6 +124,8 @@ def create_context_index():
         print(f"Index '{INDEX_NAME}' already exists.")
 
 # Create index if it doesn't exist
+def delete_index():
+    client.indices.delete(index=INDEX_NAME)
 def create_past_knowledge_index():
     if not client.indices.exists(index=PAST_KNOWLEDGE_INDEX):
         body = {
