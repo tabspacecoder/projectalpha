@@ -3,6 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
+
+body, html, #root {
+  background: transparent !important;
+}
+
 @layer utilities {
   @keyframes wave {
     0% { transform: rotate(0deg); }

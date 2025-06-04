@@ -16,24 +16,24 @@ const ChatWidget = () => {
     scrollToBottom();
   }, [messages, loading]);
 
-//   const loginPattern = /\\login\s+\\usr<([^>]+)>\s+\\pw<([^>]+)>/;
+  //   const loginPattern = /\\login\s+\\usr<([^>]+)>\s+\\pw<([^>]+)>/;
   const sendMessage = async () => {
     if (!input.trim()) return;
-//     const match = input.match(loginPattern);
-    if (input == "\\clear"){
-        setMessages([{ sender: 'bot', text: 'Hi! How can I help you?' }])
-        setInput('');
-        setLoading(true);
+    //     const match = input.match(loginPattern);
+    if (input == "\\clear") {
+      setMessages([{ sender: 'bot', text: 'Hi! How can I help you?' }])
+      setInput('');
+      setLoading(true);
     }
-//     else if(match){
-//         setMessages([])
-//         setInput('');
-//         setLoading(true);
-//     }
-    else{
-        setMessages((prev) => [...prev, { sender: 'user', text: input }]);
-        setInput('');
-        setLoading(true);
+    //     else if(match){
+    //         setMessages([])
+    //         setInput('');
+    //         setLoading(true);
+    //     }
+    else {
+      setMessages((prev) => [...prev, { sender: 'user', text: input }]);
+      setInput('');
+      setLoading(true);
     }
 
 
@@ -43,8 +43,17 @@ const ChatWidget = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input }),
       });
-      const { response } = await res.json();
-      setMessages((prev) => [...prev, { sender: 'bot', text: response }]);
+      // console.log(res.json());
+      const { response, source_files, file } = await res.json();
+
+      const botMessage = {
+        sender: 'bot',
+        text: response,
+        source: source_files !== 'NOT_FOUND' ? source_files : null,
+        file: source_files !== 'NOT_FOUND' ? file : null,
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
     } catch {
       setMessages((prev) => [...prev, { sender: 'bot', text: 'Something went wrong.' }]);
     } finally {
@@ -56,7 +65,7 @@ const ChatWidget = () => {
     <div className="fixed bottom-10 right-10 z-50 flex flex-col items-end space-y-2">
       {/* Welcome Message */}
       {showWelcome && !open && (
-        <div className="relative max-w-xs bg-white text-gray-800 text-sm shadow-xl border border-gray-200 rounded-full px-4 py-2 flex items-center space-x-2 animate-fade-in-down">
+        <div className="relative max-w-xs bg-transparent text-gray-800 text-sm shadow-xl border border-gray-200 rounded-full px-4 py-2 flex items-center space-x-2 animate-fade-in-down">
           <span className="font-medium">Hello <span className="animate-waving-hand">👋</span></span>
           <button
             onClick={() => setShowWelcome(false)}
@@ -66,7 +75,7 @@ const ChatWidget = () => {
             ✖
           </button>
           {/* Bubble tail */}
-          <div className="absolute -bottom-2 right-5 w-3 h-3 bg-white border-r border-b border-gray-200 transform rotate-45 z-0" />
+          <div className="absolute -bottom-2 right-5 w-3 h-3 bg-transparent border-r border-b border-gray-200 transform rotate-45 z-0" />
         </div>
       )}
 
@@ -103,11 +112,24 @@ const ChatWidget = () => {
               >
                 <div
                   className={`rounded-2xl px-4 py-2 max-w-[75%] text-sm shadow-md ${msg.sender === 'user'
-                      ? 'bg-blue-100'
-                      : 'bg-gray-200'
+                    ? 'bg-blue-100'
+                    : 'bg-gray-200'
                     }`}
                 >
-                <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  {msg.sender === 'bot' && msg.source && msg.file && (
+                    <div className="text-xs mt-2 text-gray-600">
+                      Source:{' '}
+                      <a
+                        href={msg.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-violet-600 underline"
+                      >
+                        {msg.source}
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
