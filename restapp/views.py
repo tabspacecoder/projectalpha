@@ -125,63 +125,6 @@ def format_qwen_prompt(user_message, chat_history, context=None):
 
     return prompt
 
-
-# @csrf_exempt
-# def message(request):
-#     if request.method != "POST":
-#         return JsonResponse({"error": "POST method required."}, status=405)
-#
-#     try:
-#         data = json.loads(request.body)
-#         user_message = data.get("message", "").strip()
-#         if not user_message:
-#             return JsonResponse({"error": "Message not found in request body."}, status=400)
-#
-#         # Load or initialize chat history
-#         chat_history = request.session.get("chat_history", [])
-#
-#         # Search for relevant context
-#         search_result = search_DB_For_Context(user_message)
-#         source_files, context_text = get_texts_from_response(search_result)
-#
-#         # Rerank to get best few
-#         texts = [r["_source"]["text"] for r in search_result["hits"]["hits"]]
-#         reranked = sorted(
-#             zip(texts, reranker.predict([(user_message, t) for t in texts])),
-#             key=lambda x: x[1], reverse=True
-#         )
-#         top_context = "\n\n".join([r[0] for r in reranked[:5]])
-#
-#         # Summarize old turns
-#         chat_history = summarize_chat_history(chat_history, max_turns=10)
-#
-#         # Build prompt with updated history
-#         messages = build_chat_messages(user_message, chat_history, context=top_context)
-#         response = llm.chat(messages=messages, max_tokens=256)
-#
-#         answer = response["choices"][0]["message"]["content"].strip()
-#
-#         # If needed, handle fallback for weak responses
-#         if contains_negative_response(answer):
-#             # Optionally re-ask with simpler prompt or fallback
-#             pass
-#
-#         # Save updated history
-#         chat_history.append({"role": "user", "content": user_message})
-#         chat_history.append({"role": "assistant", "content": answer})
-#         request.session["chat_history"] = summarize_chat_history(chat_history)
-#         request.session.modified = True
-#
-#         return JsonResponse({
-#             "received_message": user_message,
-#             "response": answer,
-#             "source_files": list(set(source_files))
-#         })
-#
-#     except json.JSONDecodeError:
-#         return JsonResponse({"error": "Invalid JSON."}, status=400)
-#     except Exception as e:
-#         return JsonResponse({"error": str(e)}, status=500)
 @csrf_exempt
 def message(request):
     if request.method != "POST":

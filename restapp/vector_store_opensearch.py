@@ -1,73 +1,28 @@
 import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel
-from opensearchpy import OpenSearch
 import fitz  # PyMuPDF
 from opensearchpy.helpers import bulk
 import nltk
 import re
-import json
 from nltk.tokenize import sent_tokenize
-from datetime import datetime
-import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection
-from requests_aws4auth import AWS4Auth
 
-# Set AWS credentials and region directly in code
-# aws_access_key = "AKIA3MKTETV6SKJYRUFZ"
-# aws_secret_key = "T8f96ej3zzOEIdR7ha57Fs2jQ8knynMMOsdOg/pS"
-# aws_session_token = None  # Optional, only needed if using temporary credentials (e.g. from STS)
-# region = "us-east-1"
-# service = "es"
+from projectalpha.settings import OPENSEARCH_PORT, OPENSEARCH_HOST, OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD
 
-# # Create boto3 session with credentials
-# session = boto3.Session(
-#     aws_access_key_id=aws_access_key,
-#     aws_secret_access_key=aws_secret_key,
-#     region_name=region
-# )
-
-# Get credentials from session
-# credentials = session.get_credentials().get_frozen_credentials()
-
-# AWS4Auth for signing OpenSearch requests
-# awsauth = AWS4Auth(
-#     credentials.access_key,
-#     credentials.secret_key,
-#     region,
-#     service,
-#     session_token=credentials.token
-# )
-
-# AWS OpenSearch endpoint (no "https://")
-OPENSEARCH_HOST = "search-project-alpha1-7ov6m6etnf5pw5iti2zydq6teq.us-east-1.es.amazonaws.com"
-
-# Create OpenSearch client
-# client = OpenSearch(
-#     hosts=[{'host': OPENSEARCH_HOST, 'port': 443}],
-#     http_auth=awsauth,
-#     use_ssl=True,
-#     verify_certs=True,
-#     connection_class=RequestsHttpConnection
-# )
-
-#Doenload tokenizer model
+#Download tokenizer model
 nltk.download("punkt_tab")
 
 # Device configuration
 device = torch.device("mps") if torch.backends.mps.is_built() else torch.device("cpu")
 
-# OpenSearch configuration
-# OPENSEARCH_HOST = "localhost"
-OPENSEARCH_PORT = 9200
-OPENSEARCH_USER = "admin"
-OPENSEARCH_PASS = "B0unT@Adm7"
 INDEX_NAME = "documents-vector-index"
-PAST_KNOWLEDGE_INDEX = "past-knowledge-index"
 EMBEDDING_DIM = 768  # Ensure this matches model output
+
+#Opensearch Model
 client = OpenSearch(
-    hosts=[{'host': OPENSEARCH_HOST, 'port': 443}],
-    http_auth=('project-alpha', 'Project@lpha123'),
+    hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
+    http_auth=(OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD),
     use_ssl=True,
     verify_certs=True,
     connection_class=RequestsHttpConnection
@@ -77,14 +32,6 @@ client = OpenSearch(
 tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1",trust_remote_code=True)
 model = AutoModel.from_pretrained("nomic-ai/nomic-embed-text-v1",trust_remote_code=True)
 model.to(device)
-
-# OpenSearch client
-# client = OpenSearch(
-#     hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}],
-#     http_auth=(OPENSEARCH_USER, OPENSEARCH_PASS),
-#     use_ssl=True,
-#     verify_certs=False
-# )
 
 # Create index if not exists
 def create_context_index():
@@ -123,65 +70,12 @@ def create_context_index():
     else:
         print(f"Index '{INDEX_NAME}' already exists.")
 
-# Create index if it doesn't exist
+#Delete all the chunks from the index(for admin use)
 def delete_index():
     client.indices.delete(index=INDEX_NAME)
-def create_past_knowledge_index():
-    if not client.indices.exists(index=PAST_KNOWLEDGE_INDEX):
-        body = {
-            "settings": {
-                "knn": True,
-                "number_of_shards": 1,
-                "refresh_interval": "1s"
-            },
-            "mappings": {
-                "properties": {
-                    "received_message": {"type": "text"},
-                    "response": {"type": "text"},
-                    "filename": {"type": "keyword"},
-                    "timestamp": {"type": "date"},
-                    "embedding": {
-                        "type": "knn_vector",
-                        "dimension": EMBEDDING_DIM,
-                        "method": {
-                            "name": "hnsw",
-                            "space_type": "cosinesimil",
-                            "engine": "faiss",
-                            "parameters": {
-                                "ef_construction": 200,
-                                "m": 32
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        client.indices.create(index=PAST_KNOWLEDGE_INDEX, body=body)
-        print(f"Index '{PAST_KNOWLEDGE_INDEX}' created.")
-    else:
-        print(f"Index '{PAST_KNOWLEDGE_INDEX}' already exists.")
 
-# create_past_knowledge_index()
+# Create index if it doesn't exist
 create_context_index()
-# Store the interaction
-def store_in_past_knowledge_index(user_message, answer):
-    # create_past_knowledge_index()
-
-    embedding = embed_texts([user_message])[0].tolist()
-
-    doc = {
-        "received_message": user_message,
-        "response": answer,
-        "embedding": embedding,
-        "timestamp": torch.tensor([]).new_zeros(()).numpy().tolist()  # or use datetime.now().isoformat()
-    }
-
-    try:
-        res = client.index(index=PAST_KNOWLEDGE_INDEX, body=doc)
-        print("Stored in past knowledge index:", res['result'])
-    except Exception as e:
-        print("Error storing conversation:", e)
-
 
 # Embedding using Nomic transformer
 def embed_texts(texts, batch_size=16):
@@ -196,7 +90,6 @@ def embed_texts(texts, batch_size=16):
             normalized = F.normalize(cls_embeddings, p=2, dim=1)
             embeddings.extend(normalized.cpu().numpy())
     return embeddings
-
 
 def extract_text_and_metadata(file_bytes):
     """
@@ -292,7 +185,6 @@ def extract_text_and_metadata(file_bytes):
                 })
     return all_chunks
 
-
 def vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes, filename, index_name=INDEX_NAME):
     create_context_index()
     chunks_with_meta = extract_text_and_metadata(file_bytes)
@@ -324,26 +216,6 @@ def vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes, filename, index_na
 
     print(f"Bulk indexed {success} chunks for file '{filename}' with metadata.")
     return len(chunks_with_meta)
-
-def store_in_past_knowledge_index(user_message, answer, filename):
-
-    embedding = embed_texts([user_message])[0].tolist()
-
-    doc = {
-        "received_message": user_message,
-        "response": answer,
-        "embedding": embedding,
-        "filename": filename,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-    try:
-        res = client.index(index=PAST_KNOWLEDGE_INDEX, body=doc)
-        print(f"Stored in 'past-knowledge' from file '{filename}':", res['result'])
-    except Exception as e:
-        print("Error storing conversation:", e)
-
-
 
 # Search OpenSearch with query
 def search_DB_For_Context(query_text, index_name=INDEX_NAME, k=12, size=7, filename_filter=None):
@@ -405,52 +277,6 @@ def search_DB_For_Context(query_text, index_name=INDEX_NAME, k=12, size=7, filen
 
     return response
 
-def search_past_knowledge(query_text, k=12, size=2):
-    query_vector = embed_texts([query_text])[0].tolist()
-
-    query_body = {
-        "size": size,
-        "query": {
-            "bool": {
-                "must": [
-                    {
-                        "knn": {
-                            "embedding": {
-                                "vector": query_vector,
-                                "k": k
-                            }
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": query_text,
-                            "fields": ["received_message^2", "response"],
-                            "type": "most_fields"
-                        }
-                    }
-                ]
-            }
-        }
-    }
-
-    try:
-        response = client.search(index=PAST_KNOWLEDGE_INDEX, body=query_body)
-        results = []
-        for hit in response["hits"]["hits"]:
-            source = hit["_source"]
-            results.append({
-                "received_message": source.get("received_message", ""),
-                "response": source.get("response", ""),
-                "filename": source.get("filename", ""),  # still included for review
-                "timestamp": source.get("timestamp", ""),
-                "score": hit.get("_score", 0)
-            })
-        return results
-    except Exception as e:
-        print("Error searching past knowledge:", e)
-        return []
-
-
 def get_texts_from_response(response):
     hits = response.get("hits", {}).get("hits", [])
     texts = []
@@ -461,33 +287,3 @@ def get_texts_from_response(response):
         if text:
             texts.append(text)
     return source_file, "\n---\n".join(texts)
-
-def build_context_from_past_search_results(search_results, max_entries=2):
-    # Sort by score descending
-    sorted_results = sorted(search_results, key=lambda r: r.get("score", 0), reverse=True)
-    top_results = sorted_results[:max_entries]
-
-    context_parts = []
-    filenames = []
-
-    for res in top_results:
-        filenames.append(res["filename"])
-        context_parts.append(
-            f"Q: {res['received_message']}\nA: {res['response']}"
-        )
-
-    context = "\n\n".join(context_parts)
-    return context, filenames
-
-def extract(pdf_path):
-    with open(pdf_path, "rb") as f:
-        file_bytes = f.read()
-        return file_bytes
-
-# pdf_path = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/uploads/employee handbook.pdf"
-# pdf_path = "/Users/mugunth.chandirasekaran/PycharmProjects/personal/projectalpha/uploads/Lockers Policy.pdf"
-# text = extract(pdf_path)
-# vectorize_pdf_and_index_in_opensearch_bulk_v3(file_bytes=text, filename="employee handbook.pdf")
-# user_message = "What do you know about care values"
-# response = search_DB_For_Context(user_message)
-# print(response)

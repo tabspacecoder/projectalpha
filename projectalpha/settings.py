@@ -148,3 +148,8 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # or wherever your frontend runs
 ]
+
+OPENSEARCH_PORT = 443
+OPENSEARCH_HOST = "search-project-alpha1-7ov6m6etnf5pw5iti2zydq6teq.us-east-1.es.amazonaws.com"
+OPENSEARCH_USERNAME = 'project-alpha'
+OPENSEARCH_PASSWORD = 'Project@lpha123'
