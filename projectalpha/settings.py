@@ -142,3 +142,8 @@ AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
 
 CORS_ALLOW_ALL_ORIGINS = True
+TOKENIZERS_PARALLELISM = False
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # or wherever your frontend runs
+]

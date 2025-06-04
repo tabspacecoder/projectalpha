@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-
+import ReactMarkdown from 'react-markdown'
 const ChatWidget = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ sender: 'bot', text: 'Hi! How can I help you?' }]);
@@ -16,17 +16,32 @@ const ChatWidget = () => {
     scrollToBottom();
   }, [messages, loading]);
 
+//   const loginPattern = /\\login\s+\\usr<([^>]+)>\s+\\pw<([^>]+)>/;
   const sendMessage = async () => {
     if (!input.trim()) return;
+//     const match = input.match(loginPattern);
+    if (input == "\\clear"){
+        setMessages([{ sender: 'bot', text: 'Hi! How can I help you?' }])
+        setInput('');
+        setLoading(true);
+    }
+//     else if(match){
+//         setMessages([])
+//         setInput('');
+//         setLoading(true);
+//     }
+    else{
+        setMessages((prev) => [...prev, { sender: 'user', text: input }]);
+        setInput('');
+        setLoading(true);
+    }
 
-    setMessages((prev) => [...prev, { sender: 'user', text: input }]);
-    setInput('');
-    setLoading(true);
 
     try {
       const res = await fetch('http://localhost:8000/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ message: input }),
       });
       const { response } = await res.json();
@@ -93,7 +108,7 @@ const ChatWidget = () => {
                       : 'bg-gray-200'
                     }`}
                 >
-                  {msg.text}
+                <ReactMarkdown>{msg.text}</ReactMarkdown>
                 </div>
               </div>
             ))}

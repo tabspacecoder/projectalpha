@@ -74,8 +74,6 @@ def create_context_index():
     else:
         print(f"Index '{INDEX_NAME}' already exists.")
 
-# Utility: Extract text from PDF stream
-
 # Create index if it doesn't exist
 def create_past_knowledge_index():
     if not client.indices.exists(index=PAST_KNOWLEDGE_INDEX):
