@@ -1,0 +1,48 @@
+# Bytecode and Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+*.eggs/
+*.manifest
+*.spec
+
+# Django-specific
+*.sqlite3
+db.sqlite3
+*.log
+media/
+staticfiles/
+
+# Node.js build & modules
+UI/node_modules/
+UI/.parcel-cache/
+UI/.next/
+UI/.vite/
+UI/dist/
+UI/build/
+
+# Environment and secret files
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Docker and git
+.dockerignore
+Dockerfile
+.docker/
+.git/
+.gitignore
+
+# OS & editor junk
+*.swp
+*.swo
+*.DS_Store
+*.idea/
+*.vscode/
+.python-version

@@ -7,12 +7,12 @@ from django.core.exceptions import ValidationError
 from storages.backends.s3boto3 import S3Boto3Storage
 from .vector_store_opensearch import vectorize_pdf_and_index_in_opensearch_bulk_v3
 
-import boto3
-session = boto3.Session()
-credentials = session.get_credentials().get_frozen_credentials()
-print("Access Key:", credentials.access_key)
-print("Secret Key:", credentials.secret_key)
-print("Token:", credentials.token)
+# import boto3
+# session = boto3.Session()
+# credentials = session.get_credentials().get_frozen_credentials()
+# print("Access Key:", credentials.access_key)
+# print("Secret Key:", credentials.secret_key)
+# print("Token:", credentials.token)
 
 s3_storage = S3Boto3Storage()
 # Create your models here.
