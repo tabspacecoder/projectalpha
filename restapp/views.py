@@ -14,6 +14,8 @@ import os
 from django.http import FileResponse
 import re
 from pathlib import Path
+
+from projectalpha.settings import UI_LINK
 from .vector_store_opensearch import get_texts_from_response, search_DB_For_Context, delete_index
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 local_path = Path('Qwen3-0.6B-Q8_0.gguf')
@@ -258,7 +260,7 @@ def user_login(request):
 
 @login_required
 def dummy_home(request):
-    return HttpResponseRedirect("http://localhost:5173")
+    return HttpResponseRedirect(UI_LINK)
 
 
 def user_logout(request):
