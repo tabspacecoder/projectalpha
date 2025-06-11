@@ -69,6 +69,17 @@ python manage.py makemigrations
 python manage.py migrate
 python manage.py runserver
 ```
+#### Running OpenSearch in Docker in Local
+
+To run OpenSearch using Docker, use the following command:
+
+```bash
+docker run -it -p 9200:9200 -p 9600:9600 \
+  -e OPENSEARCH_INITIAL_ADMIN_PASSWORD=B0unT@Adm7 \
+  -e "discovery.type=single-node" \
+  --name opensearch-node \
+  opensearchproject/opensearch:latest
+```
 
 ### 2. Frontend Setup
 
