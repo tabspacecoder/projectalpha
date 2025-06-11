@@ -154,4 +154,10 @@ OPENSEARCH_HOST = "search-project-alpha1-7ov6m6etnf5pw5iti2zydq6teq.us-east-1.es
 OPENSEARCH_USERNAME = 'project-alpha'
 OPENSEARCH_PASSWORD = 'Project@lpha123'
 
-UI_LINK = 'http://localhost:5173'
+#Local Opensearch Setup credentials
+# OPENSEARCH_HOST = "localhost"
+# OPENSEARCH_PORT = 9200
+# OPENSEARCH_USER = "admin"
+# OPENSEARCH_PASS = "B0unT@Adm7"
+
+UI_LINK = 'http://localhost:3000'
