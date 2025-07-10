@@ -19,9 +19,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '4dsg*e7t1nl^#ic1vqf!9x4p1kg$qd%duxj@7c&_h^9qh%d8jv'
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -136,7 +133,6 @@ AWS_S3_REGION_NAME = 'ap-south-1'  # e.g., 'us-east-1'
 AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
 
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
-# https://ctrl-ai-hack-hello-world-s3.s3.ap-south-1.amazonaws.com
 
 CORS_ALLOW_ALL_ORIGINS = True
 TOKENIZERS_PARALLELISM = False
