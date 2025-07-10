@@ -128,14 +128,10 @@ LOGIN_URL = ''
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-# export AWS_ACCESS_KEY_ID="AKIA3MKTETV64HW6UBKZ"
-# export AWS_SECRET_ACCESS_KEY="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"
-# export AWS_DEFAULT_REGION="us-east-1"
-
 # AWS settings
-AWS_ACCESS_KEY_ID = 'AKIA2FA7DQGYCLEJYFPX'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'ctrl-ai-hack-hello-world-s3'
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
+AWS_STORAGE_BUCKET_NAME = ''
 AWS_S3_REGION_NAME = 'ap-south-1'  # e.g., 'us-east-1'
 AWS_QUERYSTRING_AUTH = False  # Optional: makes uploaded file URLs public
 
@@ -149,15 +145,10 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',  # or wherever your frontend runs
 ]
 
-OPENSEARCH_PORT = 443
-OPENSEARCH_HOST = "search-project-alpha1-7ov6m6etnf5pw5iti2zydq6teq.us-east-1.es.amazonaws.com"
-OPENSEARCH_USERNAME = 'project-alpha'
-OPENSEARCH_PASSWORD = 'Project@lpha123'
-
-#Local Opensearch Setup credentials
-# OPENSEARCH_HOST = "localhost"
-# OPENSEARCH_PORT = 9200
-# OPENSEARCH_USER = "admin"
-# OPENSEARCH_PASS = "B0unT@Adm7"
+# Local Opensearch Setup credentials
+OPENSEARCH_HOST = "localhost"
+OPENSEARCH_PORT = 9200
+OPENSEARCH_USER = "admin"
+OPENSEARCH_PASS = "B0unT@Adm7"
 
 UI_LINK = 'http://localhost:3000'
